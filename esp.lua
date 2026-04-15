@@ -47,7 +47,7 @@ ESP.VisibleColor   = Color3.fromRGB(0, 255, 0)
 ESP.Viewline          = false
 ESP.ViewlineColor     = Color3.fromRGB(115, 218, 255)
 ESP.ViewlineThickness = 1
-ESP.ViewlineLength    = 1  -- 0-1, how far the line extends (1 = full)
+ESP.ViewlineLength    = 15  -- studs from head along look direction
 
 local R15_BONES = {
     {"Head", "UpperTorso"},
@@ -400,26 +400,10 @@ local function renderPlayer(plr, c)
             and feetScreen.Y > 0 and feetScreen.Y < vp.Y
 
         if not headOnScreen and not feetOnScreen then
-            for i = 1, 8 do
-                c.boxLines[i].Visible = false
-                c.boxOutlines[i].Visible = false
-            end
-            c.boxFill.Visible = false
-            c.healthBg.Visible = false
-            c.healthFill.Visible = false
-            c.healthOutline.Visible = false
-            c.healthText.Visible = false
-            c.nameText.Visible = false
-            for i = 1, 14 do
-                c.skeletonLines[i].Visible = false
-                c.skeletonOutlines[i].Visible = false
-            end
+            hideAll(c)
 
             if ESP.OOFArrows then
                 drawOOFArrow(c, headScreen, headScreen.Z, ESP.OOFColor)
-            else
-                c.arrowFill.Visible = false
-                c.arrowOutline.Visible = false
             end
             return
         end
@@ -432,26 +416,10 @@ local function renderPlayer(plr, c)
     end
 
     if not anyOnScreen or maxX < 0 or minX > vp.X or maxY < 0 or minY > vp.Y then
-        for i = 1, 8 do
-            c.boxLines[i].Visible = false
-            c.boxOutlines[i].Visible = false
-        end
-        c.boxFill.Visible = false
-        c.healthBg.Visible = false
-        c.healthFill.Visible = false
-        c.healthOutline.Visible = false
-        c.healthText.Visible = false
-        c.nameText.Visible = false
-        for i = 1, 14 do
-            c.skeletonLines[i].Visible = false
-            c.skeletonOutlines[i].Visible = false
-        end
+        hideAll(c)
 
         if ESP.OOFArrows then
             drawOOFArrow(c, headScreen, headScreen.Z, ESP.OOFColor)
-        else
-            c.arrowFill.Visible = false
-            c.arrowOutline.Visible = false
         end
         return
     end
@@ -513,12 +481,13 @@ local function renderPlayer(plr, c)
         c.healthFill.Color = hColor
         c.healthFill.Visible = true
 
-        if ESP.HealthText then
+        if ESP.HealthText and healthPct < 100 then
             c.healthText.Text = tostring(healthPct)
-            c.healthText.Size = 11
-            c.healthText.Position = Vector2.new(hbX - 2, hbY + hbH - fillH - 7)
-            c.healthText.Center = true
-            c.healthText.Visible = healthPct < 100
+            c.healthText.Size = 13
+            c.healthText.Center = false
+            c.healthText.Position = Vector2.new(hbX - 14, hbY + hbH - fillH - 6)
+            c.healthText.Color = hColor
+            c.healthText.Visible = true
         else
             c.healthText.Visible = false
         end
@@ -624,23 +593,22 @@ local function renderPlayer(plr, c)
     end
 
     if ESP.Viewline then
-        local feetPos = hrp.Position - Vector3.new(0, 3, 0)
-        local feetScreen, feetVis = cam:WorldToViewportPoint(feetPos)
-        if feetVis and feetScreen.Z > 0 then
-            local vpSize = cam.ViewportSize
-            local fromPos = Vector2.new(vpSize.X * 0.5, vpSize.Y)
-            local toPos = Vector2.new(feetScreen.X, feetScreen.Y)
+        local headCF = head.CFrame
+        local lookEnd = headCF.Position + headCF.LookVector * ESP.ViewlineLength
+        local headSP = cam:WorldToViewportPoint(headCF.Position)
+        local endSP, endVis = cam:WorldToViewportPoint(lookEnd)
 
-            local len = math.clamp(ESP.ViewlineLength, 0, 1)
-            local finalTo = fromPos:Lerp(toPos, len)
+        if headSP.Z > 0 and endVis and endSP.Z > 0 then
+            local fromPos = Vector2.new(headSP.X, headSP.Y)
+            local toPos = Vector2.new(endSP.X, endSP.Y)
 
             c.viewlineOutline.From = fromPos
-            c.viewlineOutline.To = finalTo
+            c.viewlineOutline.To = toPos
             c.viewlineOutline.Thickness = ESP.ViewlineThickness + 2
             c.viewlineOutline.Visible = true
 
             c.viewline.From = fromPos
-            c.viewline.To = finalTo
+            c.viewline.To = toPos
             c.viewline.Color = ESP.ViewlineColor
             c.viewline.Thickness = ESP.ViewlineThickness
             c.viewline.Visible = true
