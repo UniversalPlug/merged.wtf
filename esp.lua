@@ -764,7 +764,7 @@ end
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
-RunService.RenderStepped:Connect(function()
+local function updateESP()
     cam = Workspace.CurrentCamera
 
     if not ESP.Enabled then
@@ -779,9 +779,15 @@ RunService.RenderStepped:Connect(function()
             destroyCache(c)
             cache[plr] = nil
         else
-            renderPlayer(plr, c)
+            local s, e = pcall(renderPlayer, plr, c)
+            if not s then
+                warn("ESP Error for " .. plr.Name .. ": " .. tostring(e))
+                hideAll(c)
+            end
         end
     end
-end)
+end
+
+RunService:BindToRenderStep("BloxStrikeESP", Enum.RenderPriority.Camera.Value + 1, updateESP)
 
 return ESP
