@@ -1,5 +1,6 @@
-local Players    = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local lp  = Players.LocalPlayer
 local cam = workspace.CurrentCamera
 
@@ -18,6 +19,11 @@ ESP.BoxFillTransparency = 0.85
 ESP.HealthBar  = true
 ESP.HealthText = true
 
+-- Armor
+ESP.ArmorBar   = true
+ESP.ArmorText  = true
+ESP.ArmorColor = Color3.fromRGB(0, 150, 255)
+
 -- Info
 ESP.Names         = true
 ESP.NameColor     = Color3.fromRGB(255, 255, 255)
@@ -25,6 +31,9 @@ ESP.Distance      = true
 ESP.DistanceColor = Color3.fromRGB(180, 180, 180)
 ESP.Weapon        = true
 ESP.WeaponColor   = Color3.fromRGB(180, 180, 180)
+
+-- Wallbang
+ESP.WallbangColor = Color3.fromRGB(255, 120, 0)
 
 -- Skeleton
 ESP.Skeletons        = true
@@ -164,6 +173,29 @@ local function createCache()
     c.viewlineOutline.Color = Color3.fromRGB(0, 0, 0)
     c.viewlineOutline.Visible = false
 
+    c.armorBg = Drawing.new("Square")
+    c.armorBg.Filled = true
+    c.armorBg.Color = Color3.fromRGB(0, 0, 0)
+    c.armorBg.Transparency = 0.3
+    c.armorBg.Visible = false
+
+    c.armorFill = Drawing.new("Square")
+    c.armorFill.Filled = true
+    c.armorFill.Visible = false
+
+    c.armorOutline = Drawing.new("Square")
+    c.armorOutline.Filled = false
+    c.armorOutline.Color = Color3.fromRGB(0, 0, 0)
+    c.armorOutline.Thickness = 1
+    c.armorOutline.Visible = false
+
+    c.armorText = Drawing.new("Text")
+    c.armorText.Center = false
+    c.armorText.Outline = true
+    c.armorText.OutlineColor = Color3.fromRGB(0, 0, 0)
+    c.armorText.Color = Color3.fromRGB(255, 255, 255)
+    c.armorText.Visible = false
+
     return c
 end
 
@@ -183,6 +215,10 @@ local function destroyCache(c)
     c.arrowOutline:Remove()
     c.viewline:Remove()
     c.viewlineOutline:Remove()
+    c.armorBg:Remove()
+    c.armorFill:Remove()
+    c.armorOutline:Remove()
+    c.armorText:Remove()
 end
 
 local function hideAll(c)
@@ -205,6 +241,10 @@ local function hideAll(c)
     c.arrowOutline.Visible = false
     c.viewline.Visible = false
     c.viewlineOutline.Visible = false
+    c.armorBg.Visible = false
+    c.armorFill.Visible = false
+    c.armorOutline.Visible = false
+    c.armorText.Visible = false
 end
 
 local function getHealthColor(pct)
@@ -216,6 +256,32 @@ local function getHealthColor(pct)
         return Color3.fromRGB(255, 165, 0)
     end
     return Color3.fromRGB(255, 0, 0)
+end
+
+local function parseArmor(p1)
+	if typeof(p1) == "string" and p1 ~= "" then
+		local s, data = pcall(function() return HttpService:JSONDecode(p1) end)
+		if s and typeof(data) == "table" then
+			return {Type = tostring(data.Type or ""), Health = tonumber(data.Health) or 0}
+		end
+	end
+	return nil
+end
+
+local function getCurrentPenetration()
+    local raw = lp:GetAttribute("CurrentEquipped")
+    if not raw then return 0 end
+    local s, data = pcall(function() return HttpService:JSONDecode(raw) end)
+    if not s or not data or not data.Name then return 0 end
+    
+    local wepModule = ReplicatedStorage.Database.Custom.Weapons:FindFirstChild(data.Name)
+    if wepModule then
+        local ok, props = pcall(require, wepModule)
+        if ok and props then
+            return props.Penetration or 0
+        end
+    end
+    return 0
 end
 
 local function isEnemy(plr)
@@ -338,7 +404,7 @@ local function renderPlayer(plr, c)
 
     if not isEnemy(plr) then hideAll(c) return end
 
-    local isVisible = false
+    local isVisible = 0 -- 0 = Blocked, 1 = Visible, 2 = Wallbangable
     if ESP.VisibleCheck then
         local origin = cam.CFrame.Position
         local dir = head.Position - origin
@@ -346,7 +412,19 @@ local function renderPlayer(plr, c)
         params.FilterType = Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances = {lp.Character, char}
         local result = workspace:Raycast(origin, dir, params)
-        isVisible = result == nil
+        
+        if result == nil then
+            isVisible = 1
+        else
+            local pen = getCurrentPenetration()
+            if pen > 0 then
+                local hitPos = result.Position
+                local distToTarget = (head.Position - hitPos).Magnitude
+                if distToTarget <= pen then
+                    isVisible = 2
+                end
+            end
+        end
     end
 
     local rootPos = hrp.Position
@@ -434,7 +512,15 @@ local function renderPlayer(plr, c)
     local totalHeight = (maxY - minY) + padding * 2
 
     if ESP.Boxes then
-        local boxCol = (ESP.VisibleCheck and isVisible) and ESP.VisibleColor or ESP.BoxColor
+        local boxCol = ESP.BoxColor
+        if ESP.VisibleCheck then
+            if isVisible == 1 then
+                boxCol = ESP.VisibleColor
+            elseif isVisible == 2 then
+                boxCol = ESP.WallbangColor
+            end
+        end
+        
         if ESP.BoxType == 0 then
             drawFullBox(c, boxX, boxY, boxWidth, totalHeight, boxCol)
         else
@@ -481,7 +567,7 @@ local function renderPlayer(plr, c)
         c.healthFill.Color = hColor
         c.healthFill.Visible = true
 
-        if ESP.HealthText and healthPct < 100 then
+        if ESP.HealthText then
             c.healthText.Text = tostring(healthPct)
             c.healthText.Size = 13
             c.healthText.Center = false
@@ -495,14 +581,47 @@ local function renderPlayer(plr, c)
         c.healthBg.Visible = false
         c.healthFill.Visible = false
         c.healthOutline.Visible = false
-        if ESP.HealthText then
-            c.healthText.Text = healthPct .. "%"
-            c.healthText.Position = Vector2.new(boxX + boxWidth * 0.5, boxY + totalHeight + 2)
-            c.healthText.Center = true
-            c.healthText.Visible = true
+        c.healthText.Visible = false
+    end
+
+    local armorData = parseArmor(plr:GetAttribute("Armor"))
+    if ESP.ArmorBar and armorData and armorData.Health > 0 then
+        local abX = boxX + boxWidth + 4
+        local abY = boxY
+        local abH = totalHeight
+        local abW = 1
+        
+        c.armorBg.Position = Vector2.new(abX - 1, abY - 1)
+        c.armorBg.Size = Vector2.new(abW + 2, abH + 2)
+        c.armorBg.Visible = true
+
+        c.armorOutline.Position = Vector2.new(abX - 1, abY - 1)
+        c.armorOutline.Size = Vector2.new(abW + 2, abH + 2)
+        c.armorOutline.Visible = true
+
+        local armorPct = math.clamp(armorData.Health, 0, 100)
+        local fillH = math.floor((abH * armorPct) / 100)
+
+        c.armorFill.Position = Vector2.new(abX, abY + abH - fillH)
+        c.armorFill.Size = Vector2.new(abW, fillH)
+        c.armorFill.Color = ESP.ArmorColor
+        c.armorFill.Visible = true
+
+        if ESP.ArmorText then
+            c.armorText.Text = tostring(math.round(armorData.Health))
+            c.armorText.Size = 13
+            c.armorText.Center = false
+            c.armorText.Position = Vector2.new(abX + 4, abY + abH - fillH - 6)
+            c.armorText.Color = ESP.ArmorColor
+            c.armorText.Visible = true
         else
-            c.healthText.Visible = false
+            c.armorText.Visible = false
         end
+    else
+        c.armorBg.Visible = false
+        c.armorFill.Visible = false
+        c.armorOutline.Visible = false
+        c.armorText.Visible = false
     end
 
     if ESP.Names or ESP.Distance then
