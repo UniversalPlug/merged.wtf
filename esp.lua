@@ -38,8 +38,16 @@ ESP.OOFSize   = 12
 ESP.OOFColor  = Color3.fromRGB(115, 218, 255)
 
 -- Filters
-ESP.MaxDistance = 0      -- 0 = unlimited
-ESP.TeamCheck  = false
+ESP.MaxDistance    = 0
+ESP.TeamCheck      = false
+ESP.VisibleCheck   = false
+ESP.VisibleColor   = Color3.fromRGB(0, 255, 0)
+
+-- Viewline (tracer)
+ESP.Viewline          = false
+ESP.ViewlineColor     = Color3.fromRGB(115, 218, 255)
+ESP.ViewlineThickness = 1
+ESP.ViewlineLength    = 1  -- 0-1, how far the line extends (1 = full)
 
 local R15_BONES = {
     {"Head", "UpperTorso"},
@@ -149,6 +157,13 @@ local function createCache()
     c.arrowOutline.Thickness = 1
     c.arrowOutline.Visible = false
 
+    c.viewline = Drawing.new("Line")
+    c.viewline.Visible = false
+
+    c.viewlineOutline = Drawing.new("Line")
+    c.viewlineOutline.Color = Color3.fromRGB(0, 0, 0)
+    c.viewlineOutline.Visible = false
+
     return c
 end
 
@@ -166,6 +181,8 @@ local function destroyCache(c)
     for _, l in ipairs(c.skeletonOutlines) do l:Remove() end
     c.arrowFill:Remove()
     c.arrowOutline:Remove()
+    c.viewline:Remove()
+    c.viewlineOutline:Remove()
 end
 
 local function hideAll(c)
@@ -186,6 +203,8 @@ local function hideAll(c)
     end
     c.arrowFill.Visible = false
     c.arrowOutline.Visible = false
+    c.viewline.Visible = false
+    c.viewlineOutline.Visible = false
 end
 
 local function getHealthColor(pct)
@@ -201,8 +220,10 @@ end
 
 local function isEnemy(plr)
     if not ESP.TeamCheck then return true end
-    if plr.Team == nil or lp.Team == nil then return true end
-    return plr.Team ~= lp.Team
+    local myTeam = lp:GetAttribute("Team")
+    local theirTeam = plr:GetAttribute("Team")
+    if not myTeam or not theirTeam then return true end
+    return myTeam ~= theirTeam
 end
 
 local function setLine(line, outline, from, to, color)
@@ -316,6 +337,17 @@ local function renderPlayer(plr, c)
     if not head or not hrp then hideAll(c) return end
 
     if not isEnemy(plr) then hideAll(c) return end
+
+    local isVisible = false
+    if ESP.VisibleCheck then
+        local origin = cam.CFrame.Position
+        local dir = head.Position - origin
+        local params = RaycastParams.new()
+        params.FilterType = Enum.RaycastFilterType.Exclude
+        params.FilterDescendantsInstances = {lp.Character, char}
+        local result = workspace:Raycast(origin, dir, params)
+        isVisible = result == nil
+    end
 
     local rootPos = hrp.Position
     local dist = (rootPos - cam.CFrame.Position).Magnitude
@@ -434,16 +466,17 @@ local function renderPlayer(plr, c)
     local totalHeight = (maxY - minY) + padding * 2
 
     if ESP.Boxes then
+        local boxCol = (ESP.VisibleCheck and isVisible) and ESP.VisibleColor or ESP.BoxColor
         if ESP.BoxType == 0 then
-            drawFullBox(c, boxX, boxY, boxWidth, totalHeight, ESP.BoxColor)
+            drawFullBox(c, boxX, boxY, boxWidth, totalHeight, boxCol)
         else
-            drawCornerBox(c, boxX, boxY, boxWidth, totalHeight, ESP.BoxColor)
+            drawCornerBox(c, boxX, boxY, boxWidth, totalHeight, boxCol)
         end
 
         if ESP.BoxFill then
             c.boxFill.Position = Vector2.new(boxX + 1, boxY + 1)
             c.boxFill.Size = Vector2.new(boxWidth - 2, totalHeight - 2)
-            c.boxFill.Color = ESP.BoxFillColor
+            c.boxFill.Color = (ESP.VisibleCheck and isVisible) and ESP.VisibleColor or ESP.BoxFillColor
             c.boxFill.Transparency = ESP.BoxFillTransparency
             c.boxFill.Visible = true
         else
@@ -482,8 +515,10 @@ local function renderPlayer(plr, c)
 
         if ESP.HealthText then
             c.healthText.Text = tostring(healthPct)
-            c.healthText.Position = Vector2.new(hbX - 22, hbY + hbH - fillH - 1)
-            c.healthText.Visible = true
+            c.healthText.Size = 11
+            c.healthText.Position = Vector2.new(hbX - 2, hbY + hbH - fillH - 7)
+            c.healthText.Center = true
+            c.healthText.Visible = healthPct < 100
         else
             c.healthText.Visible = false
         end
@@ -586,6 +621,36 @@ local function renderPlayer(plr, c)
             c.skeletonLines[i].Visible = false
             c.skeletonOutlines[i].Visible = false
         end
+    end
+
+    if ESP.Viewline then
+        local feetPos = hrp.Position - Vector3.new(0, 3, 0)
+        local feetScreen, feetVis = cam:WorldToViewportPoint(feetPos)
+        if feetVis and feetScreen.Z > 0 then
+            local vpSize = cam.ViewportSize
+            local fromPos = Vector2.new(vpSize.X * 0.5, vpSize.Y)
+            local toPos = Vector2.new(feetScreen.X, feetScreen.Y)
+
+            local len = math.clamp(ESP.ViewlineLength, 0, 1)
+            local finalTo = fromPos:Lerp(toPos, len)
+
+            c.viewlineOutline.From = fromPos
+            c.viewlineOutline.To = finalTo
+            c.viewlineOutline.Thickness = ESP.ViewlineThickness + 2
+            c.viewlineOutline.Visible = true
+
+            c.viewline.From = fromPos
+            c.viewline.To = finalTo
+            c.viewline.Color = ESP.ViewlineColor
+            c.viewline.Thickness = ESP.ViewlineThickness
+            c.viewline.Visible = true
+        else
+            c.viewline.Visible = false
+            c.viewlineOutline.Visible = false
+        end
+    else
+        c.viewline.Visible = false
+        c.viewlineOutline.Visible = false
     end
 end
 
