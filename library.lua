@@ -695,199 +695,6 @@ function Library:CreateWindow(title, subtitle)
                     return ToggleObj
                 end
 
-                function ToggleObj:AddSlider(sliderLabel, min, max, default, format, sliderCallback)
-                    if type(format) == "function" then
-                        sliderCallback = format
-                        format = nil
-                    end
-                    local lo = Toggle.LayoutOrder
-                    local Slider = Instance.new("Frame")
-                    Slider.Name = sliderLabel
-                    Slider.Size = UDim2.new(1, 0, 0, 32)
-                    Slider.BackgroundTransparency = 1
-                    Slider.LayoutOrder = lo + 1
-                    Slider.Parent = Container
-
-                    local SlPad = Instance.new("UIPadding")
-                    SlPad.PaddingLeft = UDim.new(0, 12)
-                    SlPad.Parent = Slider
-
-                    local SlTitle = Instance.new("TextLabel")
-                    SlTitle.Text = sliderLabel
-                    SlTitle.Font = Enum.Font.Gotham
-                    SlTitle.TextSize = 12
-                    SlTitle.TextColor3 = Library.Theme.TextDim
-                    SlTitle.Size = UDim2.new(1, -12, 0, 16)
-                    SlTitle.TextXAlignment = Enum.TextXAlignment.Left
-                    SlTitle.BackgroundTransparency = 1
-                    SlTitle.Parent = Slider
-
-                    local SlVal = Instance.new("TextLabel")
-                    SlVal.Text = string.format(format or "%.0f", default)
-                    SlVal.Font = Enum.Font.Gotham
-                    SlVal.TextSize = 12
-                    SlVal.TextColor3 = Library.Theme.TextDim
-                    SlVal.Position = UDim2.new(1, -42, 0, 0)
-                    SlVal.Size = UDim2.new(0, 30, 0, 16)
-                    SlVal.TextXAlignment = Enum.TextXAlignment.Right
-                    SlVal.BackgroundTransparency = 1
-                    SlVal.Parent = Slider
-
-                    local SlTrack = Instance.new("Frame")
-                    SlTrack.Size = UDim2.new(1, -22, 0, 4)
-                    SlTrack.Position = UDim2.new(0, 5, 0, 22)
-                    SlTrack.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                    SlTrack.BorderSizePixel = 0
-                    SlTrack.Parent = Slider
-                    Instance.new("UICorner", SlTrack).CornerRadius = UDim.new(0, 2)
-
-                    local SlFill = Instance.new("Frame")
-                    SlFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-                    SlFill.BackgroundColor3 = Library.Theme.Accent
-                    SlFill.BorderSizePixel = 0
-                    SlFill.Parent = SlTrack
-                    Instance.new("UICorner", SlFill).CornerRadius = UDim.new(0, 2)
-
-                    local SlKnob = Instance.new("Frame")
-                    SlKnob.Size = UDim2.new(0, 10, 0, 10)
-                    SlKnob.Position = UDim2.new((default - min) / (max - min), -5, 0.5, -5)
-                    SlKnob.BackgroundColor3 = Library.Theme.TextMain
-                    SlKnob.BorderSizePixel = 0
-                    SlKnob.Parent = SlTrack
-                    Instance.new("UICorner", SlKnob).CornerRadius = UDim.new(0, 5)
-
-                    local cPos = (default - min) / (max - min)
-                    local tPos = cPos
-                    RunService.RenderStepped:Connect(function(dt)
-                        cPos = cPos + (tPos - cPos) * math.clamp(dt * 15, 0, 1)
-                        if math.abs(tPos - cPos) < 0.001 then cPos = tPos end
-                        SlFill.Size = UDim2.new(cPos, 0, 1, 0)
-                        SlKnob.Position = UDim2.new(cPos, -5, 0.5, -5)
-                    end)
-
-                    local slDrag = false
-                    Slider.InputBegan:Connect(function(i)
-                        if i.UserInputType == Enum.UserInputType.MouseButton1 then
-                            slDrag = true
-                            tPos = math.clamp((i.Position.X - SlTrack.AbsolutePosition.X) / SlTrack.AbsoluteSize.X, 0, 1)
-                            local val = min + (tPos * (max - min))
-                            SlVal.Text = string.format(format or "%.0f", val)
-                            if sliderCallback then sliderCallback(val) end
-                        end
-                    end)
-                    UserInputService.InputEnded:Connect(function(i)
-                        if i.UserInputType == Enum.UserInputType.MouseButton1 then slDrag = false end
-                    end)
-                    UserInputService.InputChanged:Connect(function(i)
-                        if slDrag and i.UserInputType == Enum.UserInputType.MouseMovement then
-                            tPos = math.clamp((i.Position.X - SlTrack.AbsolutePosition.X) / SlTrack.AbsoluteSize.X, 0, 1)
-                            local val = min + (tPos * (max - min))
-                            SlVal.Text = string.format(format or "%.0f", val)
-                            if sliderCallback then sliderCallback(val) end
-                        end
-                    end)
-
-                    return ToggleObj
-                end
-
-                function ToggleObj:AddDropdown(dropLabel, options, default, dropCallback)
-                    local lo = Toggle.LayoutOrder
-                    local DropFrame = Instance.new("Frame")
-                    DropFrame.Name = dropLabel
-                    DropFrame.Size = UDim2.new(1, 0, 0, 44)
-                    DropFrame.BackgroundTransparency = 1
-                    DropFrame.LayoutOrder = lo + 1
-                    DropFrame.AutomaticSize = Enum.AutomaticSize.Y
-                    DropFrame.Parent = Container
-
-                    local DPad = Instance.new("UIPadding")
-                    DPad.PaddingLeft = UDim.new(0, 12)
-                    DPad.Parent = DropFrame
-
-                    local DLayout = Instance.new("UIListLayout")
-                    DLayout.Padding = UDim.new(0, 0)
-                    DLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                    DLayout.Parent = DropFrame
-
-                    local DTitle = Instance.new("TextLabel")
-                    DTitle.Text = dropLabel
-                    DTitle.Font = Enum.Font.Gotham
-                    DTitle.TextSize = 12
-                    DTitle.TextColor3 = Library.Theme.TextDim
-                    DTitle.Size = UDim2.new(1, -12, 0, 16)
-                    DTitle.TextXAlignment = Enum.TextXAlignment.Left
-                    DTitle.BackgroundTransparency = 1
-                    DTitle.LayoutOrder = 1
-                    DTitle.Parent = DropFrame
-
-                    local Selected = default or (options[1] or "")
-                    local DropBtn = Instance.new("TextButton")
-                    DropBtn.Size = UDim2.new(1, -12, 0, 24)
-                    DropBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
-                    DropBtn.BorderSizePixel = 1
-                    DropBtn.BorderColor3 = Color3.fromRGB(45, 45, 45)
-                    DropBtn.Text = "  " .. Selected .. "  ▾"
-                    DropBtn.Font = Enum.Font.Gotham
-                    DropBtn.TextSize = 12
-                    DropBtn.TextColor3 = Library.Theme.TextMain
-                    DropBtn.TextXAlignment = Enum.TextXAlignment.Left
-                    DropBtn.LayoutOrder = 2
-                    DropBtn.Parent = DropFrame
-                    Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 2)
-
-                    local OptionList = Instance.new("Frame")
-                    OptionList.Size = UDim2.new(1, -12, 0, 0)
-                    OptionList.AutomaticSize = Enum.AutomaticSize.Y
-                    OptionList.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
-                    OptionList.BorderSizePixel = 1
-                    OptionList.BorderColor3 = Color3.fromRGB(45, 45, 45)
-                    OptionList.Visible = false
-                    OptionList.LayoutOrder = 3
-                    OptionList.ClipsDescendants = true
-                    OptionList.Parent = DropFrame
-                    Instance.new("UICorner", OptionList).CornerRadius = UDim.new(0, 2)
-
-                    local OLayout = Instance.new("UIListLayout")
-                    OLayout.Padding = UDim.new(0, 0)
-                    OLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                    OLayout.Parent = OptionList
-
-                    for i, opt in ipairs(options) do
-                        local OptBtn = Instance.new("TextButton")
-                        OptBtn.Size = UDim2.new(1, 0, 0, 22)
-                        OptBtn.BackgroundColor3 = (opt == Selected) and Color3.fromRGB(32, 32, 32) or Color3.fromRGB(22, 22, 22)
-                        OptBtn.BackgroundTransparency = 0
-                        OptBtn.BorderSizePixel = 0
-                        OptBtn.Text = "  " .. opt
-                        OptBtn.Font = Enum.Font.Gotham
-                        OptBtn.TextSize = 12
-                        OptBtn.TextColor3 = (opt == Selected) and Library.Theme.Accent or Library.Theme.TextDim
-                        OptBtn.TextXAlignment = Enum.TextXAlignment.Left
-                        OptBtn.LayoutOrder = i
-                        OptBtn.Parent = OptionList
-
-                        OptBtn.MouseEnter:Connect(function()
-                            Library:Tween(OptBtn, 0.15, {BackgroundColor3 = Color3.fromRGB(32, 32, 32)})
-                        end)
-                        OptBtn.MouseLeave:Connect(function()
-                            Library:Tween(OptBtn, 0.15, {BackgroundColor3 = (opt == Selected) and Color3.fromRGB(32, 32, 32) or Color3.fromRGB(22, 22, 22)})
-                        end)
-                        OptBtn.MouseButton1Click:Connect(function()
-                            Selected = opt
-                            DropBtn.Text = "  " .. opt .. "  ▾"
-                            OptionList.Visible = false
-                            if dropCallback then dropCallback(opt) end
-                            self:Refresh()
-                        end)
-                    end
-
-                    DropBtn.MouseButton1Click:Connect(function()
-                        OptionList.Visible = not OptionList.Visible
-                    end)
-
-                    return ToggleObj
-                end
-
                 return ToggleObj
             end
 
@@ -1101,101 +908,117 @@ function Library:CreateWindow(title, subtitle)
             end
 
             function SectionObj:CreateDropdown(label, options, default, callback)
-                local DropFrame = Instance.new("Frame")
-                DropFrame.Name = label
-                DropFrame.Size = UDim2.new(1, 0, 0, 44)
-                DropFrame.BackgroundTransparency = 1
-                DropFrame.AutomaticSize = Enum.AutomaticSize.Y
-                DropFrame.Parent = Container
+                local DropdownFrame = Instance.new("Frame")
+                DropdownFrame.Name = label
+                DropdownFrame.Size = UDim2.new(1, 0, 0, 48)
+                DropdownFrame.AutomaticSize = Enum.AutomaticSize.Y
+                DropdownFrame.BackgroundTransparency = 1
+                DropdownFrame.ClipsDescendants = false
+                DropdownFrame.Parent = Container
 
-                local DLayout = Instance.new("UIListLayout")
-                DLayout.Padding = UDim.new(0, 0)
-                DLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                DLayout.Parent = DropFrame
+                local Title = Instance.new("TextLabel")
+                Title.Text = label
+                Title.Font = Enum.Font.Gotham
+                Title.TextSize = 13
+                Title.TextColor3 = Library.Theme.TextDim
+                Title.Size = UDim2.new(1, 0, 0, 16)
+                Title.TextXAlignment = Enum.TextXAlignment.Left
+                Title.BackgroundTransparency = 1
+                Title.Parent = DropdownFrame
 
-                local DTitle = Instance.new("TextLabel")
-                DTitle.Text = label
-                DTitle.Font = Enum.Font.Gotham
-                DTitle.TextSize = 13
-                DTitle.TextColor3 = Library.Theme.TextDim
-                DTitle.Size = UDim2.new(1, 0, 0, 16)
-                DTitle.TextXAlignment = Enum.TextXAlignment.Left
-                DTitle.BackgroundTransparency = 1
-                DTitle.LayoutOrder = 1
-                DTitle.Parent = DropFrame
+                local Selected = default or options[1] or ""
 
-                local Selected = default or (options[1] or "")
                 local DropBtn = Instance.new("TextButton")
                 DropBtn.Size = UDim2.new(1, -10, 0, 28)
+                DropBtn.Position = UDim2.new(0, 0, 0, 20)
                 DropBtn.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
                 DropBtn.BorderSizePixel = 1
                 DropBtn.BorderColor3 = Color3.fromRGB(45, 45, 45)
-                DropBtn.Text = "  " .. Selected .. "  ▾"
+                DropBtn.Text = "  " .. tostring(Selected)
                 DropBtn.Font = Enum.Font.Gotham
                 DropBtn.TextSize = 13
                 DropBtn.TextColor3 = Library.Theme.TextMain
                 DropBtn.TextXAlignment = Enum.TextXAlignment.Left
-                DropBtn.LayoutOrder = 2
-                DropBtn.Parent = DropFrame
-                Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 2)
+                DropBtn.Parent = DropdownFrame
+
+                local BtnCorner = Instance.new("UICorner")
+                BtnCorner.CornerRadius = UDim.new(0, 2)
+                BtnCorner.Parent = DropBtn
+
+                local Arrow = Instance.new("TextLabel")
+                Arrow.Text = "▼"
+                Arrow.Font = Enum.Font.Gotham
+                Arrow.TextSize = 10
+                Arrow.TextColor3 = Library.Theme.TextDim
+                Arrow.Size = UDim2.new(0, 20, 1, 0)
+                Arrow.Position = UDim2.new(1, -22, 0, 0)
+                Arrow.BackgroundTransparency = 1
+                Arrow.Parent = DropBtn
 
                 local OptionList = Instance.new("Frame")
                 OptionList.Size = UDim2.new(1, -10, 0, 0)
+                OptionList.Position = UDim2.new(0, 0, 0, 50)
                 OptionList.AutomaticSize = Enum.AutomaticSize.Y
                 OptionList.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
                 OptionList.BorderSizePixel = 1
                 OptionList.BorderColor3 = Color3.fromRGB(45, 45, 45)
                 OptionList.Visible = false
-                OptionList.LayoutOrder = 3
-                OptionList.ClipsDescendants = true
-                OptionList.Parent = DropFrame
-                Instance.new("UICorner", OptionList).CornerRadius = UDim.new(0, 2)
+                OptionList.ZIndex = 100
+                OptionList.Parent = DropdownFrame
 
-                local OLayout = Instance.new("UIListLayout")
-                OLayout.Padding = UDim.new(0, 0)
-                OLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                OLayout.Parent = OptionList
+                local ListCorner = Instance.new("UICorner")
+                ListCorner.CornerRadius = UDim.new(0, 2)
+                ListCorner.Parent = OptionList
 
-                for i, opt in ipairs(options) do
-                    local OptBtn = Instance.new("TextButton")
-                    OptBtn.Size = UDim2.new(1, 0, 0, 24)
-                    OptBtn.BackgroundColor3 = (opt == Selected) and Color3.fromRGB(32, 32, 32) or Color3.fromRGB(22, 22, 22)
-                    OptBtn.BackgroundTransparency = 0
-                    OptBtn.BorderSizePixel = 0
-                    OptBtn.Text = "  " .. opt
-                    OptBtn.Font = Enum.Font.Gotham
-                    OptBtn.TextSize = 13
-                    OptBtn.TextColor3 = (opt == Selected) and Library.Theme.Accent or Library.Theme.TextDim
-                    OptBtn.TextXAlignment = Enum.TextXAlignment.Left
-                    OptBtn.LayoutOrder = i
-                    OptBtn.Parent = OptionList
+                local ListLayout = Instance.new("UIListLayout")
+                ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+                ListLayout.Parent = OptionList
 
-                    OptBtn.MouseEnter:Connect(function()
-                        Library:Tween(OptBtn, 0.15, {BackgroundColor3 = Color3.fromRGB(32, 32, 32)})
-                    end)
-                    OptBtn.MouseLeave:Connect(function()
-                        Library:Tween(OptBtn, 0.15, {BackgroundColor3 = (opt == Selected) and Color3.fromRGB(32, 32, 32) or Color3.fromRGB(22, 22, 22)})
-                    end)
-                    OptBtn.MouseButton1Click:Connect(function()
-                        Selected = opt
-                        DropBtn.Text = "  " .. opt .. "  ▾"
-                        OptionList.Visible = false
-                        if callback then callback(opt) end
-                        self:Refresh()
-                    end)
+                local function BuildOptions()
+                    for _, child in ipairs(OptionList:GetChildren()) do
+                        if child:IsA("TextButton") then child:Destroy() end
+                    end
+                    for i, opt in ipairs(options) do
+                        local OptBtn = Instance.new("TextButton")
+                        OptBtn.Size = UDim2.new(1, 0, 0, 24)
+                        OptBtn.BackgroundColor3 = opt == Selected and Library.Theme.Accent or Color3.fromRGB(22, 22, 22)
+                        OptBtn.BackgroundTransparency = opt == Selected and 0.8 or 0
+                        OptBtn.BorderSizePixel = 0
+                        OptBtn.Text = "  " .. tostring(opt)
+                        OptBtn.Font = Enum.Font.Gotham
+                        OptBtn.TextSize = 12
+                        OptBtn.TextColor3 = opt == Selected and Library.Theme.TextMain or Library.Theme.TextDim
+                        OptBtn.TextXAlignment = Enum.TextXAlignment.Left
+                        OptBtn.ZIndex = 101
+                        OptBtn.LayoutOrder = i
+                        OptBtn.Parent = OptionList
+
+                        OptBtn.MouseButton1Click:Connect(function()
+                            Selected = opt
+                            DropBtn.Text = "  " .. tostring(opt)
+                            OptionList.Visible = false
+                            Arrow.Text = "▼"
+                            if callback then callback(opt) end
+                            self:Refresh()
+                        end)
+                    end
                 end
+                BuildOptions()
 
                 DropBtn.MouseButton1Click:Connect(function()
                     OptionList.Visible = not OptionList.Visible
+                    Arrow.Text = OptionList.Visible and "▲" or "▼"
+                    if OptionList.Visible then BuildOptions() end
                 end)
 
                 return {
                     Set = function(val)
                         Selected = val
-                        DropBtn.Text = "  " .. val .. "  ▾"
+                        DropBtn.Text = "  " .. tostring(val)
+                        if callback then callback(val) end
                     end,
                     Visible = function(self, bool)
-                        DropFrame.Visible = bool
+                        DropdownFrame.Visible = bool
                     end
                 }
             end
