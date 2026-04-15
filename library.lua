@@ -613,19 +613,55 @@ function Library:CreateWindow(title, subtitle)
                     AlphaSwitcher.BackgroundColor3 = Color3.new(1, 1, 1)
                     AlphaSwitcher.Parent = AlphaBar
 
+                    local AlphaLabel = Instance.new("TextLabel")
+                    AlphaLabel.Text = math.floor(CurrentAlpha * 100) .. "%"
+                    AlphaLabel.Font = Enum.Font.Gotham
+                    AlphaLabel.TextSize = 11
+                    AlphaLabel.TextColor3 = Library.Theme.TextDim
+                    AlphaLabel.Size = UDim2.new(1, 0, 0, 14)
+                    AlphaLabel.Position = UDim2.new(0, 5, 0, 182)
+                    AlphaLabel.BackgroundTransparency = 1
+                    AlphaLabel.TextXAlignment = Enum.TextXAlignment.Left
+                    AlphaLabel.Parent = PickerFrame
+
                     local function UpdateColor()
                         CurrentColor = Color3.fromHSV(h, s, v)
                         ColorSq.BackgroundColor3 = CurrentColor
                         SVBox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
                         SGradient.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h, 1, 1))
                         AlphaGradient.Color = ColorSequence.new(CurrentColor, CurrentColor)
+                        AlphaLabel.Text = math.floor(CurrentAlpha * 100) .. "%"
                         if callback then callback(CurrentColor, CurrentAlpha) end
+                    end
+
+                    local function processSV(input)
+                        local rPos = math.clamp((input.Position.X - SVBox.AbsolutePosition.X) / SVBox.AbsoluteSize.X, 0, 1)
+                        local tPos = math.clamp((input.Position.Y - SVBox.AbsolutePosition.Y) / SVBox.AbsoluteSize.Y, 0, 1)
+                        s = rPos
+                        v = 1 - tPos
+                        SVSwitcher.Position = UDim2.new(s, -2, 1-v, -2)
+                        UpdateColor()
+                    end
+
+                    local function processHue(input)
+                        local tPos = math.clamp((input.Position.Y - HueBar.AbsolutePosition.Y) / HueBar.AbsoluteSize.Y, 0, 1)
+                        h = tPos
+                        HueSwitcher.Position = UDim2.new(0, -1, h, -1)
+                        UpdateColor()
+                    end
+
+                    local function processAlpha(input)
+                        local rPos = math.clamp((input.Position.X - AlphaBar.AbsolutePosition.X) / AlphaBar.AbsoluteSize.X, 0, 1)
+                        CurrentAlpha = 1 - rPos
+                        AlphaSwitcher.Position = UDim2.new(rPos, -1, 0, -1)
+                        UpdateColor()
                     end
 
                     local draggingSV = false
                     SVBox.InputBegan:Connect(function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 then
                             draggingSV = true
+                            processSV(input)
                         end
                     end)
 
@@ -633,6 +669,7 @@ function Library:CreateWindow(title, subtitle)
                     HueBar.InputBegan:Connect(function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 then
                             draggingHue = true
+                            processHue(input)
                         end
                     end)
 
@@ -640,6 +677,7 @@ function Library:CreateWindow(title, subtitle)
                     AlphaBar.InputBegan:Connect(function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 then
                             draggingAlpha = true
+                            processAlpha(input)
                         end
                     end)
 
@@ -654,22 +692,11 @@ function Library:CreateWindow(title, subtitle)
                     UserInputService.InputChanged:Connect(function(input)
                         if input.UserInputType == Enum.UserInputType.MouseMovement then
                             if draggingSV then
-                                local rPos = math.clamp((input.Position.X - SVBox.AbsolutePosition.X) / SVBox.AbsoluteSize.X, 0, 1)
-                                local tPos = math.clamp((input.Position.Y - SVBox.AbsolutePosition.Y) / SVBox.AbsoluteSize.Y, 0, 1)
-                                s = rPos
-                                v = 1 - tPos
-                                SVSwitcher.Position = UDim2.new(s, -2, 1-v, -2)
-                                UpdateColor()
+                                processSV(input)
                             elseif draggingHue then
-                                local tPos = math.clamp((input.Position.Y - HueBar.AbsolutePosition.Y) / HueBar.AbsoluteSize.Y, 0, 1)
-                                h = tPos
-                                HueSwitcher.Position = UDim2.new(0, -1, h, -1)
-                                UpdateColor()
+                                processHue(input)
                             elseif draggingAlpha then
-                                local rPos = math.clamp((input.Position.X - AlphaBar.AbsolutePosition.X) / AlphaBar.AbsoluteSize.X, 0, 1)
-                                CurrentAlpha = 1 - rPos
-                                AlphaSwitcher.Position = UDim2.new(rPos, -1, 0, -1)
-                                UpdateColor()
+                                processAlpha(input)
                             end
                         end
                     end)
