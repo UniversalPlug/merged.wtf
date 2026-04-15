@@ -1,8 +1,10 @@
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local lp  = game:GetService("Players").LocalPlayer
-local cam = game:GetService("Workspace").CurrentCamera
+local Workspace = game:GetService("Workspace")
+local lp = Players.LocalPlayer
+local cam = Workspace.CurrentCamera
 
 local ESP = {}
 ESP.Enabled = true
@@ -763,7 +765,7 @@ Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
 RunService.RenderStepped:Connect(function()
-    cam = workspace.CurrentCamera
+    cam = Workspace.CurrentCamera
 
     if not ESP.Enabled then
         for _, c in pairs(cache) do
