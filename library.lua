@@ -176,11 +176,23 @@ function Library:CreateWindow(title, subtitle)
         Tabs = {},
         ActiveTab = nil,
         Gui = Gui,
-        Main = Main
+        Main = Main,
+        _popups = {}
     }
     
     function Window:Destroy()
         Gui:Destroy()
+    end
+
+    function Window:ClosePopups()
+        for _, popup in ipairs(self._popups) do
+            popup.Visible = false
+        end
+    end
+
+    function Window:Toggle(visible)
+        self:ClosePopups()
+        Main.Visible = visible
     end
 
     function Window:CreateTab(name)
