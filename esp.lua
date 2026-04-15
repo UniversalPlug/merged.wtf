@@ -1,8 +1,8 @@
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local lp  = Players.LocalPlayer
-local cam = workspace.CurrentCamera
+local lp  = game:GetService("Players").LocalPlayer
+local cam = game:GetService("Workspace").CurrentCamera
 
 local ESP = {}
 ESP.Enabled = true
