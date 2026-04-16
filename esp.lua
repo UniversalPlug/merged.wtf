@@ -409,19 +409,21 @@ local function renderPlayer(plr, c)
     local isVisible = 0 -- 0 = Blocked, 1 = Visible, 2 = Wallbangable
     if ESP.VisibleCheck then
         local origin = cam.CFrame.Position
-        local dir = head.Position - origin
+        local targetPos = head.Position
+        local dir = targetPos - origin
+        
         local params = RaycastParams.new()
         params.FilterType = Enum.RaycastFilterType.Exclude
         params.FilterDescendantsInstances = {lp.Character, char}
         local result = workspace:Raycast(origin, dir, params)
         
-        if result == nil then
+        if not result then
             isVisible = 1
         else
             local pen = getCurrentPenetration()
             if pen > 0 then
                 local hitPos = result.Position
-                local distToTarget = (head.Position - hitPos).Magnitude
+                local distToTarget = (targetPos - hitPos).Magnitude
                 if distToTarget <= pen then
                     isVisible = 2
                 end
@@ -430,10 +432,13 @@ local function renderPlayer(plr, c)
     end
 
     local rootPos = hrp.Position
-    local dist = (rootPos - cam.CFrame.Position).Magnitude
+    local camPos = cam.CFrame.Position
+    local dist = (rootPos - camPos).Magnitude
+    
+    if dist < 2 then hideAll(c) return end
     if ESP.MaxDistance > 0 and dist > ESP.MaxDistance then hideAll(c) return end
 
-    local headPos  = head.Position + Vector3.new(0, 0.5, 0)
+    local headPos = head.Position + Vector3.new(0, 0.5, 0)
     local headScreen, headVis = cam:WorldToViewportPoint(headPos)
     local vp = cam.ViewportSize
 
@@ -441,23 +446,33 @@ local function renderPlayer(plr, c)
     local maxX, maxY = -math.huge, -math.huge
     local anyOnScreen = false
 
-    for _, part in ipairs(char:GetChildren()) do
-        if part:IsA("BasePart") then
+    local bodyParts = {
+        "Head", "UpperTorso", "LowerTorso", "Torso",
+        "LeftUpperArm", "LeftLowerArm", "LeftHand",
+        "RightUpperArm", "RightLowerArm", "RightHand",
+        "LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
+        "RightUpperLeg", "RightLowerLeg", "RightFoot",
+        "Left Arm", "Right Arm", "Left Leg", "Right Leg"
+    }
+
+    for _, partName in ipairs(bodyParts) do
+        local part = char:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then
             local cf = part.CFrame
             local sz = part.Size * 0.5
             local corners = {
-                cf * Vector3.new( sz.X,  sz.Y,  sz.Z),
-                cf * Vector3.new(-sz.X,  sz.Y,  sz.Z),
-                cf * Vector3.new( sz.X, -sz.Y,  sz.Z),
-                cf * Vector3.new(-sz.X, -sz.Y,  sz.Z),
-                cf * Vector3.new( sz.X,  sz.Y, -sz.Z),
-                cf * Vector3.new(-sz.X,  sz.Y, -sz.Z),
-                cf * Vector3.new( sz.X, -sz.Y, -sz.Z),
+                cf * Vector3.new(sz.X, sz.Y, sz.Z),
+                cf * Vector3.new(-sz.X, sz.Y, sz.Z),
+                cf * Vector3.new(sz.X, -sz.Y, sz.Z),
+                cf * Vector3.new(-sz.X, -sz.Y, sz.Z),
+                cf * Vector3.new(sz.X, sz.Y, -sz.Z),
+                cf * Vector3.new(-sz.X, sz.Y, -sz.Z),
+                cf * Vector3.new(sz.X, -sz.Y, -sz.Z),
                 cf * Vector3.new(-sz.X, -sz.Y, -sz.Z),
             }
             for _, corner in ipairs(corners) do
                 local sp, vis = cam:WorldToViewportPoint(corner)
-                if vis and sp.Z > 0 then
+                if sp.Z > 0 then
                     anyOnScreen = true
                     if sp.X < minX then minX = sp.X end
                     if sp.X > maxX then maxX = sp.X end
@@ -468,36 +483,8 @@ local function renderPlayer(plr, c)
         end
     end
 
-    if not anyOnScreen then
-        local feetPos  = hrp.Position - Vector3.new(0, 3, 0)
-        local feetScreen, feetVis = cam:WorldToViewportPoint(feetPos)
-
-        local headOnScreen = headVis
-            and headScreen.X > 0 and headScreen.X < vp.X
-            and headScreen.Y > 0 and headScreen.Y < vp.Y
-        local feetOnScreen = feetVis
-            and feetScreen.X > 0 and feetScreen.X < vp.X
-            and feetScreen.Y > 0 and feetScreen.Y < vp.Y
-
-        if not headOnScreen and not feetOnScreen then
-            hideAll(c)
-
-            if ESP.OOFArrows then
-                drawOOFArrow(c, headScreen, headScreen.Z, ESP.OOFColor)
-            end
-            return
-        end
-
-        minX = math.min(headScreen.X, feetScreen.X) - 20
-        maxX = math.max(headScreen.X, feetScreen.X) + 20
-        minY = math.min(headScreen.Y, feetScreen.Y)
-        maxY = math.max(headScreen.Y, feetScreen.Y)
-        anyOnScreen = true
-    end
-
-    if not anyOnScreen or maxX < 0 or minX > vp.X or maxY < 0 or minY > vp.Y then
+    if not anyOnScreen or maxX < -100 or minX > vp.X + 100 or maxY < -100 or minY > vp.Y + 100 then
         hideAll(c)
-
         if ESP.OOFArrows then
             drawOOFArrow(c, headScreen, headScreen.Z, ESP.OOFColor)
         end
@@ -532,7 +519,7 @@ local function renderPlayer(plr, c)
         if ESP.BoxFill then
             c.boxFill.Position = Vector2.new(boxX + 1, boxY + 1)
             c.boxFill.Size = Vector2.new(boxWidth - 2, totalHeight - 2)
-            c.boxFill.Color = (ESP.VisibleCheck and isVisible) and ESP.VisibleColor or ESP.BoxFillColor
+            c.boxFill.Color = boxCol
             c.boxFill.Transparency = ESP.BoxFillTransparency
             c.boxFill.Visible = true
         else
