@@ -154,8 +154,10 @@ function Library:CreateWindow(title, subtitle)
     -- Tabs Container
     local TabContainer = Instance.new("Frame")
     TabContainer.Name = "TabContainer"
-    TabContainer.Size = UDim2.new(0, 360, 1, 0)
-    TabContainer.Position = UDim2.new(1, -375, 0, 0) -- size.x - 4*90 - 15
+    TabContainer.AnchorPoint = Vector2.new(1, 0)
+    TabContainer.Size = UDim2.new(0, 0, 1, 0)
+    TabContainer.Position = UDim2.new(1, -15, 0, 0)
+    TabContainer.AutomaticSize = Enum.AutomaticSize.X
     TabContainer.BackgroundTransparency = 1
     TabContainer.Parent = Navbar
 
@@ -185,8 +187,13 @@ function Library:CreateWindow(title, subtitle)
     end
 
     function Window:ClosePopups()
-        for _, popup in ipairs(self._popups) do
-            popup.Visible = false
+        for i = #self._popups, 1, -1 do
+            local popup = self._popups[i]
+            if popup and popup.Parent then
+                popup.Visible = false
+            else
+                table.remove(self._popups, i)
+            end
         end
     end
 
@@ -356,9 +363,22 @@ function Library:CreateWindow(title, subtitle)
             ContainerLayout.SortOrder = Enum.SortOrder.LayoutOrder
             ContainerLayout.Parent = Container
 
-            local SectionObj = {}
+            local SectionObj = {
+                Cleanup = {}
+            }
 
             function SectionObj:Clear()
+                for _, v in ipairs(self.Cleanup) do
+                    if typeof(v) == "RBXScriptConnection" then
+                        v:Disconnect()
+                    elseif typeof(v) == "Instance" then
+                        v:Destroy()
+                    elseif type(v) == "table" and v.Type == "Keybind" then
+                        Library:UnregisterKeybind(v.Key, v.Id)
+                    end
+                end
+                table.clear(self.Cleanup)
+
                 for _, v in ipairs(Container:GetChildren()) do
                     if not v:IsA("UIListLayout") and not v:IsA("UIPadding") then
                         v:Destroy()
@@ -462,6 +482,7 @@ function Library:CreateWindow(title, subtitle)
 
                     if BoundKey then
                         Library:RegisterKeybind(BoundKey, BindId, TriggerAction)
+                        table.insert(SectionObj.Cleanup, {Type = "Keybind", Key = BoundKey, Id = BindId})
                     end
 
                     local BlacklistedKeys = {
@@ -506,6 +527,14 @@ function Library:CreateWindow(title, subtitle)
                                 KeyButton.TextColor3 = Library.Theme.TextDim
                                 if callback then callback(BoundKey) end
                                 
+                                -- Update cleanup registry
+                                for i, v in ipairs(SectionObj.Cleanup) do
+                                    if type(v) == "table" and v.Type == "Keybind" and v.Id == BindId then
+                                        v.Key = BoundKey
+                                        break
+                                    end
+                                end
+                                
                                 Listening = false
                                 Connection:Disconnect()
                             end
@@ -547,6 +576,7 @@ function Library:CreateWindow(title, subtitle)
                     PickerFrame.ZIndex = 5000
                     PickerFrame.Visible = false
                     PickerFrame.Parent = Gui
+                    table.insert(Window._popups, PickerFrame)
 
                     local PickerCorner = Instance.new("UICorner")
                     PickerCorner.CornerRadius = UDim.new(0, 4)
@@ -719,17 +749,22 @@ function Library:CreateWindow(title, subtitle)
                     end
 
                     ColorSq.MouseButton1Click:Connect(function()
-                        PickerFrame.Visible = not PickerFrame.Visible
+                        local wasVisible = PickerFrame.Visible
+                        Window:ClosePopups()
+                        PickerFrame.Visible = not wasVisible
                         if PickerFrame.Visible then
                             UpdatePos()
                         end
                     end)
 
-                    RunService.Heartbeat:Connect(function()
+                    local hb = RunService.Heartbeat:Connect(function()
                         if PickerFrame.Visible then
                             UpdatePos()
                         end
                     end)
+
+                    table.insert(SectionObj.Cleanup, PickerFrame)
+                    table.insert(SectionObj.Cleanup, hb)
 
                     return ToggleObj
                 end
