@@ -139,15 +139,26 @@ function Library:SaveConfig(tbl, name)
     writefile(path, HttpService:JSONEncode(data))
 end
 
-function Library:LoadConfig(tbl, name)
+function Library:LoadConfig(tbl, name, callback)
     local path = "merged/configs/" .. name
-    if not isfile(path) then return end
+    if not isfile(path) then 
+        warn("Config file not found: " .. path)
+        return 
+    end
     
     local s, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
     if s and type(data) == "table" then
-        local decoded = self:Deserialize(data)
-        self:DeepMerge(tbl, decoded)
-        self:RefreshAll()
+        local s2, err = pcall(function()
+            local decoded = self:Deserialize(data)
+            self:DeepMerge(tbl, decoded)
+            self:RefreshAll()
+            if callback then callback() end
+        end)
+        if not s2 then
+            warn("Error applying config: " .. tostring(err))
+        end
+    else
+        warn("Error decoding config file: " .. tostring(data))
     end
 end
 
