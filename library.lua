@@ -2,6 +2,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 
 local Library = {
     Theme = {
@@ -15,7 +16,8 @@ local Library = {
         TextDim = Color3.fromRGB(120, 120, 120)
     },
     Components = {},
-    KeybindRegistry = {}
+    KeybindRegistry = {},
+    Sections = {}
 }
 
 UserInputService.InputBegan:Connect(function(input, gpe)
@@ -66,6 +68,107 @@ function Library:MakeDraggable(frame, trigger)
             frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
+end
+
+function Library:DeepMerge(target, source)
+    for k, v in pairs(source) do
+        if type(v) == "table" and type(target[k]) == "table" then
+            self:DeepMerge(target[k], v)
+        else
+            target[k] = v
+        end
+    end
+end
+
+function Library:Serialize(tbl)
+    local result = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            result[k] = self:Serialize(v)
+        elseif typeof(v) == "Color3" then
+            result[k] = {__type = "Color3", r = v.R, g = v.G, b = v.B}
+        elseif typeof(v) == "EnumItem" then
+            result[k] = {__type = "EnumItem", value = v.Value, enum = tostring(v.EnumType)}
+        else
+            result[k] = v
+        end
+    end
+    return result
+end
+
+function Library:Deserialize(tbl)
+    local result = {}
+    for k, v in pairs(tbl) do
+        if type(v) == "table" then
+            if v.__type == "Color3" then
+                result[k] = Color3.new(v.r, v.g, v.b)
+            elseif v.__type == "EnumItem" then
+                local enumType = v.enum
+                local enumValue = v.value
+                pcall(function()
+                    local enumName = enumType:gsub("Enum.", "")
+                    for _, item in ipairs(Enum[enumName]:GetEnumItems()) do
+                        if item.Value == enumValue then
+                            result[k] = item
+                            break
+                        end
+                    end
+                end)
+            else
+                result[k] = self:Deserialize(v)
+            end
+        else
+            result[k] = v
+        end
+    end
+    return result
+end
+
+function Library:RefreshAll()
+    for _, section in ipairs(self.Sections) do
+        section:Refresh()
+    end
+end
+
+function Library:SaveConfig(tbl, name)
+    if not isfolder("merged") then makefolder("merged") end
+    if not isfolder("merged/configs") then makefolder("merged/configs") end
+    
+    local path = "merged/configs/" .. name .. ".json"
+    local data = self:Serialize(tbl)
+    writefile(path, HttpService:JSONEncode(data))
+end
+
+function Library:LoadConfig(tbl, name)
+    local path = "merged/configs/" .. name
+    if not isfile(path) then return end
+    
+    local s, data = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
+    if s and type(data) == "table" then
+        local decoded = self:Deserialize(data)
+        self:DeepMerge(tbl, decoded)
+        self:RefreshAll()
+    end
+end
+
+function Library:DeleteConfig(name)
+    local path = "merged/configs/" .. name
+    if isfile(path) then
+        delfile(path)
+    end
+end
+
+function Library:ListConfigs()
+    if not isfolder("merged/configs") then return {} end
+    local files = listfiles("merged/configs")
+    local configs = {}
+    for _, file in ipairs(files) do
+        local name = file:match("([^/\\]+)$")
+        if name:find("%.json$") then
+            table.insert(configs, name)
+        end
+    end
+    return configs
 end
 function Library:CreateWindow(title, subtitle)
     local Gui = Instance.new("ScreenGui")
@@ -366,6 +469,7 @@ function Library:CreateWindow(title, subtitle)
             local SectionObj = {
                 Cleanup = {}
             }
+            table.insert(Library.Sections, SectionObj)
 
             function SectionObj:Clear()
                 for _, v in ipairs(self.Cleanup) do
