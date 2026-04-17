@@ -1034,7 +1034,12 @@ function Library:CreateWindow(title, subtitle)
                 }
             end
 
-            function SectionObj:CreateInput(label, placeholder, callback)
+            function SectionObj:CreateInput(label, placeholder, default, callback)
+                if type(default) == "function" then
+                    callback = default
+                    default = ""
+                end
+
                 local InputFrame = Instance.new("Frame")
                 InputFrame.Size = UDim2.new(1, 0, 0, 48)
                 InputFrame.BackgroundTransparency = 1
@@ -1057,7 +1062,7 @@ function Library:CreateWindow(title, subtitle)
                 Box.BorderSizePixel = 1
                 Box.BorderColor3 = Color3.fromRGB(45, 45, 45)
                 Box.PlaceholderText = placeholder or "..."
-                Box.Text = ""
+                Box.Text = default or ""
                 Box.Font = Enum.Font.Gotham
                 Box.TextSize = 13
                 Box.TextColor3 = Library.Theme.TextMain
