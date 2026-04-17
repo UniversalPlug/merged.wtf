@@ -394,6 +394,12 @@ end
 local function renderPlayer(plr, c)
     if plr == lp then hideAll(c) return end
 
+    local subject = cam.CameraSubject
+    if subject and plr.Character and subject:IsDescendantOf(plr.Character) then
+        hideAll(c)
+        return
+    end
+
     local char = plr.Character
     if not char then hideAll(c) return end
 
