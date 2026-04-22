@@ -394,6 +394,12 @@ end
 local function renderPlayer(plr, c)
     if plr == lp then hideAll(c) return end
 
+    local subject = cam.CameraSubject
+    if subject and plr.Character and subject:IsDescendantOf(plr.Character) then
+        hideAll(c)
+        return
+    end
+
     local char = plr.Character
     if not char then hideAll(c) return end
 
@@ -414,51 +420,19 @@ local function renderPlayer(plr, c)
         
         local params = RaycastParams.new()
         params.FilterType = Enum.RaycastFilterType.Exclude
-        local excluded = {lp.Character, char}
-        params.FilterDescendantsInstances = excluded
+        params.FilterDescendantsInstances = {lp.Character, char}
+        local result = workspace:Raycast(origin, dir, params)
         
-        local blocked = false
-        local totalPen = 0
-        local pen = getCurrentPenetration()
-        local castOrigin = origin
-        local maxCasts = 10
-        
-        for _ = 1, maxCasts do
-            local castDir = targetPos - castOrigin
-            local result = workspace:Raycast(castOrigin, castDir, params)
-            
-            if not result then
-                if totalPen > 0 then
+        if not result then
+            isVisible = 1
+        else
+            local pen = getCurrentPenetration()
+            if pen > 0 then
+                local hitPos = result.Position
+                local distToTarget = (targetPos - hitPos).Magnitude
+                if distToTarget <= pen then
                     isVisible = 2
-                else
-                    isVisible = 1
                 end
-                blocked = false
-                break
-            end
-            
-            local hitPart = result.Instance
-            local hitTrans = hitPart.Transparency
-            local hitMat = hitPart.Material
-            local isSeeThrough = hitTrans >= 0.5
-                or hitMat == Enum.Material.Glass
-                or hitMat == Enum.Material.ForceField
-                or hitMat == Enum.Material.Ice
-            
-            if isSeeThrough then
-                table.insert(excluded, hitPart)
-                params.FilterDescendantsInstances = excluded
-                castOrigin = result.Position + castDir.Unit * 0.01
-            else
-                blocked = true
-                if pen > 0 then
-                    local distToTarget = (targetPos - result.Position).Magnitude
-                    totalPen = totalPen + distToTarget
-                    if totalPen <= pen then
-                        isVisible = 2
-                    end
-                end
-                break
             end
         end
     end
@@ -467,9 +441,7 @@ local function renderPlayer(plr, c)
     local camPos = cam.CFrame.Position
     local dist = (rootPos - camPos).Magnitude
     
-    local subject = cam.CameraSubject
-    local isSpectating = subject and char and subject:IsDescendantOf(char)
-    if dist < 2 and isSpectating then hideAll(c) return end
+    if dist < 2 then hideAll(c) return end
     if ESP.MaxDistance > 0 and dist > ESP.MaxDistance then hideAll(c) return end
 
     local headPos = head.Position + Vector3.new(0, 0.5, 0)
