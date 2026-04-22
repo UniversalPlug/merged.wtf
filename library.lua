@@ -17,7 +17,9 @@ local Library = {
     },
     Components = {},
     KeybindRegistry = {},
-    Sections = {}
+    Sections = {},
+    _toggles = {},
+    _window = nil
 }
 
 UserInputService.InputBegan:Connect(function(input, gpe)
@@ -200,7 +202,6 @@ function Library:CreateWindow(title, subtitle)
     MainCorner.CornerRadius = UDim.new(0, 4)
     MainCorner.Parent = Main
 
-    -- Navbar
     local Navbar = Instance.new("Frame")
     Navbar.Name = "Navbar"
     Navbar.Size = UDim2.new(1, 0, 0, 42)
@@ -212,7 +213,6 @@ function Library:CreateWindow(title, subtitle)
     NavbarCorner.CornerRadius = UDim.new(0, 4)
     NavbarCorner.Parent = Navbar
 
-    -- Navbar Bottom Hide Corners
     local NavbarHideLine = Instance.new("Frame")
     NavbarHideLine.Size = UDim2.new(1, 0, 0, 2)
     NavbarHideLine.Position = UDim2.new(0, 0, 1, -2)
@@ -227,7 +227,6 @@ function Library:CreateWindow(title, subtitle)
     NavbarLine.BorderSizePixel = 0
     NavbarLine.Parent = Navbar
 
-    -- Logo
     local LogoContainer = Instance.new("Frame")
     LogoContainer.Size = UDim2.new(0, 200, 1, 0)
     LogoContainer.Position = UDim2.new(0, 25, 0, 0)
@@ -265,7 +264,6 @@ function Library:CreateWindow(title, subtitle)
 
     Library:MakeDraggable(Main, Navbar)
 
-    -- Tabs Container
     local TabContainer = Instance.new("Frame")
     TabContainer.Name = "TabContainer"
     TabContainer.AnchorPoint = Vector2.new(1, 0)
@@ -280,7 +278,6 @@ function Library:CreateWindow(title, subtitle)
     TabsLayout.SortOrder = Enum.SortOrder.LayoutOrder
     TabsLayout.Parent = TabContainer
 
-    -- Content Area
     local Content = Instance.new("Frame")
     Content.Name = "Content"
     Content.Size = UDim2.new(1, -10, 1, -52)
@@ -400,7 +397,6 @@ function Library:CreateWindow(title, subtitle)
         RightPadding.PaddingTop = UDim.new(0, 10)
         RightPadding.Parent = RightColumn
 
-        -- Section logic
         local Tab = {
             Sections = {}
         }
@@ -431,7 +427,6 @@ function Library:CreateWindow(title, subtitle)
             SectionTitleCorner.CornerRadius = UDim.new(0, 4)
             SectionTitleCorner.Parent = SectionTitle
 
-            -- Hide bottom corners of titlebar
             local TitleHide = Instance.new("Frame")
             TitleHide.Size = UDim2.new(1, 0, 0, 2)
             TitleHide.Position = UDim2.new(0, 0, 1, -2)
@@ -546,7 +541,7 @@ function Library:CreateWindow(title, subtitle)
                 local TrackStroke = Instance.new("UIStroke")
                 TrackStroke.Thickness = 1
                 TrackStroke.Color = default and Library.Theme.Accent or Color3.fromRGB(45, 45, 45)
-                TrackStroke.Transparency = 0 -- Fully visible outline
+                TrackStroke.Transparency = 0 
                 TrackStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
                 TrackStroke.Parent = Track
 
@@ -574,6 +569,8 @@ function Library:CreateWindow(title, subtitle)
                         self:Refresh()
                     end)
                 end
+
+                table.insert(Library._toggles, SetState)
 
                 Toggle.MouseButton1Click:Connect(function()
                     SetState(not Toggled)
@@ -642,7 +639,6 @@ function Library:CreateWindow(title, subtitle)
                                 KeyButton.TextColor3 = Library.Theme.TextDim
                                 if callback then callback(BoundKey) end
                                 
-                                -- Update cleanup registry
                                 for i, v in ipairs(SectionObj.Cleanup) do
                                     if type(v) == "table" and v.Type == "Keybind" and v.Id == BindId then
                                         v.Key = BoundKey
@@ -684,7 +680,7 @@ function Library:CreateWindow(title, subtitle)
                     Stroke.Parent = ColorSq
 
                     local PickerFrame = Instance.new("Frame")
-                    PickerFrame.Size = UDim2.new(0, 180, 0, 200)
+                    PickerFrame.Size = UDim2.new(0, 200, 0, 190)
                     PickerFrame.BackgroundColor3 = Library.Theme.Main
                     PickerFrame.BorderColor3 = Library.Theme.Border
                     PickerFrame.BorderSizePixel = 1
@@ -753,33 +749,60 @@ function Library:CreateWindow(title, subtitle)
                     HueSwitcher.Parent = HueBar
 
                     local AlphaBar = Instance.new("Frame")
-                    AlphaBar.Size = UDim2.new(0, 170, 0, 15)
-                    AlphaBar.Position = UDim2.new(0, 5, 0, 165)
+                    AlphaBar.Size = UDim2.new(0, 15, 0, 150)
+                    AlphaBar.Position = UDim2.new(0, 180, 0, 5)
                     AlphaBar.BackgroundColor3 = Color3.new(1, 1, 1)
                     AlphaBar.BorderSizePixel = 0
                     AlphaBar.Parent = PickerFrame
 
                     local AlphaGradient = Instance.new("UIGradient")
-                    AlphaGradient.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.new(1, 1, 1))
+                    AlphaGradient.Rotation = 90
+                    AlphaGradient.Color = ColorSequence.new(CurrentColor, CurrentColor)
                     AlphaGradient.Transparency = NumberSequence.new(0, 1)
                     AlphaGradient.Parent = AlphaBar
 
                     local AlphaSwitcher = Instance.new("Frame")
-                    AlphaSwitcher.Size = UDim2.new(0, 2, 1, 2)
-                    AlphaSwitcher.Position = UDim2.new(1 - CurrentAlpha, -1, 0, -1)
+                    AlphaSwitcher.Size = UDim2.new(1, 2, 0, 2)
+                    AlphaSwitcher.Position = UDim2.new(0, -1, 1 - CurrentAlpha, -1)
                     AlphaSwitcher.BackgroundColor3 = Color3.new(1, 1, 1)
                     AlphaSwitcher.Parent = AlphaBar
 
-                    local AlphaLabel = Instance.new("TextLabel")
-                    AlphaLabel.Text = math.floor(CurrentAlpha * 100) .. "%"
-                    AlphaLabel.Font = Enum.Font.Gotham
-                    AlphaLabel.TextSize = 11
-                    AlphaLabel.TextColor3 = Library.Theme.TextDim
-                    AlphaLabel.Size = UDim2.new(1, 0, 0, 14)
-                    AlphaLabel.Position = UDim2.new(0, 5, 0, 182)
-                    AlphaLabel.BackgroundTransparency = 1
-                    AlphaLabel.TextXAlignment = Enum.TextXAlignment.Left
-                    AlphaLabel.Parent = PickerFrame
+                    local function colorToHex(c)
+                        return string.format("#%02X%02X%02X", math.floor(c.R * 255 + 0.5), math.floor(c.G * 255 + 0.5), math.floor(c.B * 255 + 0.5))
+                    end
+
+                    local function hexToColor(hex)
+                        hex = hex:gsub("#", "")
+                        if #hex == 6 then
+                            local r = tonumber(hex:sub(1,2), 16)
+                            local g = tonumber(hex:sub(3,4), 16)
+                            local b = tonumber(hex:sub(5,6), 16)
+                            if r and g and b then
+                                return Color3.fromRGB(r, g, b)
+                            end
+                        end
+                        return nil
+                    end
+
+                    local HexBox = Instance.new("TextBox")
+                    HexBox.Size = UDim2.new(0, 190, 0, 22)
+                    HexBox.Position = UDim2.new(0, 5, 0, 160)
+                    HexBox.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+                    HexBox.BorderSizePixel = 1
+                    HexBox.BorderColor3 = Color3.fromRGB(45, 45, 45)
+                    HexBox.Text = colorToHex(CurrentColor)
+                    HexBox.Font = Enum.Font.Code
+                    HexBox.TextSize = 13
+                    HexBox.TextColor3 = Library.Theme.TextMain
+                    HexBox.ClearTextOnFocus = false
+                    HexBox.ZIndex = 5001
+                    HexBox.Parent = PickerFrame
+
+                    local HexCorner = Instance.new("UICorner")
+                    HexCorner.CornerRadius = UDim.new(0, 2)
+                    HexCorner.Parent = HexBox
+
+                    local updatingHex = false
 
                     local function UpdateColor()
                         CurrentColor = Color3.fromHSV(h, s, v)
@@ -787,9 +810,25 @@ function Library:CreateWindow(title, subtitle)
                         SVBox.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
                         SGradient.Color = ColorSequence.new(Color3.new(1,1,1), Color3.fromHSV(h, 1, 1))
                         AlphaGradient.Color = ColorSequence.new(CurrentColor, CurrentColor)
-                        AlphaLabel.Text = math.floor(CurrentAlpha * 100) .. "%"
+                        if not updatingHex then
+                            HexBox.Text = colorToHex(CurrentColor)
+                        end
                         if callback then callback(CurrentColor, CurrentAlpha) end
                     end
+
+                    HexBox.FocusLost:Connect(function()
+                        updatingHex = true
+                        local c = hexToColor(HexBox.Text)
+                        if c then
+                            h, s, v = Color3.toHSV(c)
+                            SVSwitcher.Position = UDim2.new(s, -2, 1-v, -2)
+                            HueSwitcher.Position = UDim2.new(0, -1, h, -1)
+                            UpdateColor()
+                        else
+                            HexBox.Text = colorToHex(CurrentColor)
+                        end
+                        updatingHex = false
+                    end)
 
                     local function processSV(input)
                         local rPos = math.clamp((input.Position.X - SVBox.AbsolutePosition.X) / SVBox.AbsoluteSize.X, 0, 1)
@@ -808,9 +847,9 @@ function Library:CreateWindow(title, subtitle)
                     end
 
                     local function processAlpha(input)
-                        local rPos = math.clamp((input.Position.X - AlphaBar.AbsolutePosition.X) / AlphaBar.AbsoluteSize.X, 0, 1)
-                        CurrentAlpha = 1 - rPos
-                        AlphaSwitcher.Position = UDim2.new(rPos, -1, 0, -1)
+                        local tPos = math.clamp((input.Position.Y - AlphaBar.AbsolutePosition.Y) / AlphaBar.AbsoluteSize.Y, 0, 1)
+                        CurrentAlpha = 1 - tPos
+                        AlphaSwitcher.Position = UDim2.new(0, -1, tPos, -1)
                         UpdateColor()
                     end
 
@@ -1246,6 +1285,7 @@ function Library:CreateWindow(title, subtitle)
             Library:Tween(TabButton, 0.2, {TextColor3 = Library.Theme.TextMain})
             Library:Tween(AccentLine, 0.2, {Transparency = 0})
             Library:Tween(Glow, 0.2, {Transparency = 0})
+            Window:ClosePopups()
             Page.Visible = true
         end)
 
@@ -1267,6 +1307,19 @@ function Library:CreateWindow(title, subtitle)
         return Tab
     end
 
+    Library._window = Window
     return Window
 end
+
+function Library:close_menu()
+    for _, setState in ipairs(self._toggles) do
+        pcall(setState, false)
+    end
+    table.clear(self._toggles)
+    if self._window then
+        pcall(function() self._window:Destroy() end)
+        self._window = nil
+    end
+end
+
 return Library
